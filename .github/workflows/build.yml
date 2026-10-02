@@ -1,0 +1,28 @@
+name: Build Amber18Diagnostic
+
+on:
+  workflow_dispatch:
+  push:
+    branches:
+      - main
+
+jobs:
+  build:
+    runs-on: macos-latest
+
+    steps:
+      - name: Checkout project
+        uses: actions/checkout@v4
+
+      - name: Install Theos
+        uses: theos/setup-theos@v1
+
+      - name: Build package
+        run: |
+          make package THEOS_PACKAGE_SCHEME=rootless FINALPACKAGE=1
+
+      - name: Upload DEB
+        uses: actions/upload-artifact@v4
+        with:
+          name: Amber18Diagnostic-DEB
+          path: packages/*.deb
