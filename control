@@ -1,0 +1,9 @@
+Package: com.ochium.amber18diagnostic
+Name: Amber18 Diagnostic
+Version: 0.0.1
+Architecture: iphoneos-arm64
+Description: Diagnostic for testing the iOS 18 H10ISP Amber flashlight path.
+Maintainer: Ochium
+Author: Ochium
+Section: Tweaks
+Depends: mobilesubstrate
