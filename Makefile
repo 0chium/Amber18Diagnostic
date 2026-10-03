@@ -16,3 +16,10 @@ Amber18CCModule_PRIVATE_FRAMEWORKS = ControlCenterUIKit SpringBoardUI
 Amber18CCModule_INSTALL_PATH = /Library/ControlCenter/Bundles
 Amber18CCModule_RESOURCE_FILES = Amber18CCModule/Info.plist
 include $(THEOS_MAKE_PATH)/bundle.mk
+
+LIBRARY_NAME = Amber18NativeFlashlightProbe
+Amber18NativeFlashlightProbe_FILES = NativeFlashlightProbe/NativeFlashlightProbe.m
+Amber18NativeFlashlightProbe_CFLAGS = -fobjc-arc
+Amber18NativeFlashlightProbe_PRIVATE_FRAMEWORKS = SpringBoardUI
+Amber18NativeFlashlightProbe_INSTALL_PATH = /usr/lib
+include $(THEOS_MAKE_PATH)/library.mk
