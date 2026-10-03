@@ -1,11 +1,14 @@
 #import <Foundation/Foundation.h>
 #import <objc/message.h>
 #import <objc/runtime.h>
-#import <notify.h>
 
 #import <ControlCenterUIKit/CCUIToggleModule.h>
 
-#define AMBER_STATE_NAME "com.ochium.amber18.enabled"
+#include <fcntl.h>
+#include <unistd.h>
+
+#define AMBER_FLAG_PATH \
+"/var/mobile/Library/Caches/com.ochium.amber18.enabled"
 
 @interface Amber18CCModule : CCUIToggleModule
 @end
@@ -14,32 +17,23 @@
 
 - (BOOL)isSelected
 {
-    int token = -1;
-    uint64_t state = 0;
-
-    if (notify_register_check(AMBER_STATE_NAME, &token)
-        != NOTIFY_STATUS_OK) {
-        return NO;
-    }
-
-    notify_get_state(token, &state);
-    notify_cancel(token);
-
-    return state == 1;
+    return access(AMBER_FLAG_PATH, F_OK) == 0;
 }
 
 - (void)setSelected:(BOOL)selected
 {
-    int token = -1;
+    if (selected) {
+        int fd = open(
+            AMBER_FLAG_PATH,
+            O_WRONLY | O_CREAT | O_TRUNC,
+            0644
+        );
 
-    if (notify_register_check(AMBER_STATE_NAME, &token)
-        != NOTIFY_STATUS_OK) {
-        return;
+        if (fd >= 0)
+            close(fd);
+    } else {
+        unlink(AMBER_FLAG_PATH);
     }
-
-    notify_set_state(token, selected ? 1 : 0);
-    notify_post(AMBER_STATE_NAME);
-    notify_cancel(token);
 
     Class controllerClass =
         objc_getClass("SBUIFlashlightController");
