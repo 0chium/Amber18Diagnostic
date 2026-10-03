@@ -1,10 +1,47 @@
 #import <Foundation/Foundation.h>
 #import <UIKit/UIKit.h>
 #import <objc/message.h>
-#import <objc/runtime.h>
 
-#import <ControlCenterUIKit/CCUIContentModule.h>
-#import <ControlCenterUIKit/CCUISliderButtonModuleViewController.h>
+#pragma mark - Private Control Center declarations
+
+@protocol CCUIContentModuleContentViewController <NSObject>
+@end
+
+@protocol CCUIContentModuleBackgroundViewController <NSObject>
+@end
+
+@protocol CCUIContentModule <NSObject>
+
+@required
+@property (nonatomic, readonly)
+    UIViewController<CCUIContentModuleContentViewController>
+        *contentViewController;
+
+@property (nonatomic, readonly)
+    UIViewController<CCUIContentModuleBackgroundViewController>
+        *backgroundViewController;
+
+@optional
+- (UIViewController<CCUIContentModuleContentViewController> *)
+    contentViewControllerForContext:(id)context;
+
+- (UIViewController<CCUIContentModuleBackgroundViewController> *)
+    backgroundViewControllerForContext:(id)context;
+
+- (NSUInteger)supportedGridSizeClasses;
+- (BOOL)expandsGridSizeClassesForAccessibility;
+- (NSString *)moduleDescription;
+
+@end
+
+
+@interface CCUISliderButtonModuleViewController : UIViewController
+
+- (BOOL)isSelected;
+- (void)setSelected:(BOOL)selected;
+
+@end
+
 
 #pragma mark - Private SpringBoardUI declarations
 
@@ -47,7 +84,6 @@
 
         if (_flashlight != nil &&
             [_flashlight respondsToSelector:@selector(addObserver:)]) {
-
             [_flashlight addObserver:self];
         }
     }
@@ -59,7 +95,6 @@
 {
     if (_flashlight != nil &&
         [_flashlight respondsToSelector:@selector(removeObserver:)]) {
-
         [_flashlight removeObserver:self];
     }
 }
@@ -102,7 +137,6 @@
 - (void)viewWillAppear:(BOOL)animated
 {
     [super viewWillAppear:animated];
-
     [self amber18UpdateState];
 }
 
@@ -112,7 +146,6 @@
         return;
 
     BOOL on = [_flashlight level] != 0;
-
     [super setSelected:on];
 }
 
@@ -121,16 +154,14 @@
     if (_flashlight == nil)
         return;
 
-    BOOL currentlyOn =
-        [_flashlight level] != 0;
+    BOOL currentlyOn = [_flashlight level] != 0;
 
     if (currentlyOn) {
         [super setSelected:NO];
 
         [_flashlight
             turnFlashlightOffForReason:@"Control Center"];
-    }
-    else {
+    } else {
         [super setSelected:YES];
 
         [_flashlight
@@ -138,7 +169,7 @@
     }
 }
 
-#pragma mark - SBUIFlashlightObserver
+#pragma mark - Flashlight observer callbacks
 
 - (void)flashlightLevelDidChange:(id)notification
 {
@@ -165,10 +196,6 @@
 {
     Amber18ModuleViewController *_viewController;
 }
-
-@property (nonatomic, readonly)
-    UIViewController<CCUIContentModuleContentViewController>
-        *contentViewController;
 
 @end
 
