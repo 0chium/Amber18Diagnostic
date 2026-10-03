@@ -1,18 +1,8 @@
 #import <Foundation/Foundation.h>
 #import <objc/message.h>
 #import <objc/runtime.h>
-#import <notify.h>
 
 #import <ControlCenterUIKit/CCUIToggleModule.h>
-
-#include <fcntl.h>
-#include <unistd.h>
-#include <stdio.h>
-
-#define AMBER_STATE_NAME "com.ochium.amber18.enabled"
-
-#define LOG_PATH \
-"/var/mobile/Library/Caches/com.apple.cameracaptured/Amber18Notify.txt"
 
 @interface Amber18CCModule : CCUIToggleModule
 @end
@@ -21,75 +11,77 @@
 
 - (BOOL)isSelected
 {
-    int token = -1;
-    uint64_t state = 0;
+    Class controllerClass =
+        objc_getClass("SBUIFlashlightController");
 
-    uint32_t regResult =
-        notify_register_check(AMBER_STATE_NAME, &token);
-
-    if (regResult != NOTIFY_STATUS_OK)
+    if (controllerClass == Nil)
         return NO;
 
-    uint32_t getResult =
-        notify_get_state(token, &state);
+    id controller =
+        ((id (*)(id, SEL))objc_msgSend)(
+            (id)controllerClass,
+            sel_registerName("sharedInstance")
+        );
 
-    notify_cancel(token);
-
-    if (getResult != NOTIFY_STATUS_OK)
+    if (controller == nil)
         return NO;
 
-    return state == 1;
+    SEL levelSEL = sel_registerName("level");
+
+    if (![controller respondsToSelector:levelSEL])
+        return NO;
+
+    NSUInteger level =
+        ((NSUInteger (*)(id, SEL))objc_msgSend)(
+            controller,
+            levelSEL
+        );
+
+    return level != 0;
 }
 
 - (void)setSelected:(BOOL)selected
 {
-    int token = -1;
-    uint64_t state = 0;
+    Class controllerClass =
+        objc_getClass("SBUIFlashlightController");
 
-    uint32_t regResult =
-        notify_register_check(AMBER_STATE_NAME, &token);
+    if (controllerClass == Nil)
+        return;
 
-    uint32_t setResult = 999;
-    uint32_t getResult = 999;
+    id controller =
+        ((id (*)(id, SEL))objc_msgSend)(
+            (id)controllerClass,
+            sel_registerName("sharedInstance")
+        );
 
-    if (regResult == NOTIFY_STATUS_OK) {
-        setResult =
-            notify_set_state(token, selected ? 1 : 0);
+    if (controller == nil)
+        return;
 
-        getResult =
-            notify_get_state(token, &state);
+    NSString *reason = @"com.ochium.amber18";
+
+    if (selected) {
+        SEL onSEL =
+            sel_registerName("turnFlashlightOnForReason:");
+
+        if ([controller respondsToSelector:onSEL]) {
+            ((void (*)(id, SEL, id))objc_msgSend)(
+                controller,
+                onSEL,
+                reason
+            );
+        }
+    } else {
+        SEL offSEL =
+            sel_registerName("turnFlashlightOffForReason:");
+
+        if ([controller respondsToSelector:offSEL]) {
+            ((void (*)(id, SEL, id))objc_msgSend)(
+                controller,
+                offSEL,
+                reason
+            );
+        }
     }
-
-    char buffer[512];
-
-    int length = snprintf(
-        buffer,
-        sizeof(buffer),
-        "selected: %d\n"
-        "notify_register_check: %u\n"
-        "notify_set_state: %u\n"
-        "notify_get_state: %u\n"
-        "state read back: %llu\n",
-        selected ? 1 : 0,
-        regResult,
-        setResult,
-        getResult,
-        (unsigned long long)state
-    );
-
-    int fd = open(
-        LOG_PATH,
-        O_WRONLY | O_CREAT | O_TRUNC,
-        0644
-    );
-
-    if (fd >= 0) {
-        write(fd, buffer, length);
-        close(fd);
-    }
-
-    if (regResult == NOTIFY_STATUS_OK)
-        notify_cancel(token);
 }
 
 @end
