@@ -22,6 +22,36 @@ jobs:
           mkdir -p "$THEOS/sdks"
           cp -R /tmp/theos-sdks/iPhoneOS16.5.sdk "$THEOS/sdks/"
 
+      - name: Add verified iOS 18.2 ControlCenterUIKit class
+        run: |
+          python3 <<'PY'
+          from pathlib import Path
+
+          path = Path(
+              f"{__import__('os').environ['THEOS']}/sdks/"
+              "iPhoneOS16.5.sdk/System/Library/PrivateFrameworks/"
+              "ControlCenterUIKit.framework/ControlCenterUIKit.tbd"
+          )
+
+          text = path.read_text()
+
+          old = "CCUISliderModuleBackgroundViewController,"
+          new = (
+              "CCUISliderModuleBackgroundViewController,\n"
+              "                            CCUISliderButtonModuleViewController,"
+          )
+
+          if "CCUISliderButtonModuleViewController" in text:
+              print("Class already present; no patch needed.")
+          elif old not in text:
+              raise SystemExit(
+                  "Expected insertion point not found; refusing to guess."
+              )
+          else:
+              path.write_text(text.replace(old, new, 1))
+              print("Added verified CCUISliderButtonModuleViewController export.")
+          PY
+
       - name: Build package
         run: make package THEOS_PACKAGE_SCHEME=rootless FINALPACKAGE=1
 
