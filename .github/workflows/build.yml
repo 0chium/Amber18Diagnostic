@@ -15,12 +15,12 @@ jobs:
       - name: Setup Theos
         uses: waruhachi/theos-action@v2.6.3
 
-      - name: Check ControlCenterUIKit SDK files
+      - name: Install patched Theos SDK
         run: |
-          echo "=== ControlCenterUIKit ==="
-          find "$THEOS" -iname '*ControlCenterUIKit*' -print || true
-          echo "=== UIUtilities ==="
-          find "$THEOS" -iname '*UIUtilities*' -print || true
+          rm -rf /tmp/theos-sdks
+          git clone --depth 1 https://github.com/theos/sdks.git /tmp/theos-sdks
+          mkdir -p "$THEOS/sdks"
+          cp -R /tmp/theos-sdks/iPhoneOS16.5.sdk "$THEOS/sdks/"
 
       - name: Build package
         run: make package THEOS_PACKAGE_SCHEME=rootless FINALPACKAGE=1
