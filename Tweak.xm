@@ -10,15 +10,13 @@ static int (*originalSetIndividualTorchLEDLevels)(
     unsigned int
 );
 
-static int callCount = 0;
-
 static int hookedSetIndividualTorchLEDLevels(
     void *device,
     unsigned int arg1,
     unsigned int levels
 )
 {
-    callCount++;
+    unsigned int amberLevels = levels ? (levels >> 8) : levels;
 
     const char *path =
         "/var/mobile/Library/Caches/com.apple.cameracaptured/Amber18Diagnostic-hook.txt";
@@ -31,14 +29,10 @@ static int hookedSetIndividualTorchLEDLevels(
         int length = snprintf(
             buffer,
             sizeof(buffer),
-            "hook called: %d\n"
-            "arg1: %u (0x%08X)\n"
-            "levels: %u (0x%08X)\n",
-            callCount,
-            arg1,
-            arg1,
+            "original: 0x%08X\n"
+            "amber: 0x%08X\n",
             levels,
-            levels
+            amberLevels
         );
 
         write(fd, buffer, length);
@@ -48,7 +42,7 @@ static int hookedSetIndividualTorchLEDLevels(
     return originalSetIndividualTorchLEDLevels(
         device,
         arg1,
-        levels
+        amberLevels
     );
 }
 
