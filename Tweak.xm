@@ -1,10 +1,10 @@
+#include <fcntl.h>
+#include <unistd.h>
 #include <dlfcn.h>
 #include <substrate.h>
-#include <notify.h>
 
-#define AMBER_STATE_NAME "com.ochium.amber18.enabled"
-
-static int amberNotifyToken = -1;
+#define AMBER_FLAG_PATH \
+"/var/mobile/Library/Caches/com.ochium.amber18.enabled"
 
 static int (*originalSetIndividualTorchLEDLevels)(
     void *,
@@ -14,15 +14,7 @@ static int (*originalSetIndividualTorchLEDLevels)(
 
 static bool AmberEnabled(void)
 {
-    if (amberNotifyToken < 0)
-        return false;
-
-    uint64_t state = 0;
-
-    if (notify_get_state(amberNotifyToken, &state) != NOTIFY_STATUS_OK)
-        return false;
-
-    return state == 1;
+    return access(AMBER_FLAG_PATH, F_OK) == 0;
 }
 
 static int hookedSetIndividualTorchLEDLevels(
@@ -46,13 +38,6 @@ static int hookedSetIndividualTorchLEDLevels(
 __attribute__((constructor))
 static void Amber18Loaded(void)
 {
-    if (notify_register_check(
-            AMBER_STATE_NAME,
-            &amberNotifyToken
-        ) != NOTIFY_STATUS_OK) {
-        amberNotifyToken = -1;
-    }
-
     const char *h10Path =
         "/System/Library/MediaCapture/H10ISP.mediacapture";
 
