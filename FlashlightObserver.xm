@@ -3,25 +3,27 @@
 #import <dlfcn.h>
 #import <fcntl.h>
 #import <unistd.h>
+#import <string.h>
 #import <stdio.h>
 
-__attribute__((constructor))
 static void FindFlashlightButtonIMP(void)
 {
     Class cls = objc_getClass("CCUIFlashlightModuleViewController");
-
     if (cls == Nil)
         return;
 
     SEL sel = sel_registerName("buttonTapped:forEvent:");
     Method method = class_getInstanceMethod(cls, sel);
-
     if (method == NULL)
         return;
 
     IMP imp = method_getImplementation(method);
+    if (imp == NULL)
+        return;
 
     Dl_info info;
+    memset(&info, 0, sizeof(info));
+
     if (dladdr((void *)imp, &info) == 0)
         return;
 
@@ -44,18 +46,25 @@ static void FindFlashlightButtonIMP(void)
         )
     );
 
-    const char *path =
-        "/var/mobile/Library/Preferences/Amber18FlashlightIMP.txt";
+    NSString *result =
+        [NSString stringWithUTF8String:output];
 
-    int fd = open(
-        path,
-        O_WRONLY | O_CREAT | O_TRUNC,
-        0644
-    );
-
-    if (fd < 0)
+    if (result == nil)
         return;
 
-    write(fd, output, strlen(output));
-    close(fd);
+    [result writeToFile:@"/var/mobile/Amber18FlashlightIMP.txt"
+             atomically:YES
+               encoding:NSUTF8StringEncoding
+                  error:nil];
 }
+
+%hook CCUIFlashlightModuleViewController
+
+- (void)viewDidLoad
+{
+    %orig;
+
+    FindFlashlightButtonIMP();
+}
+
+%end
