@@ -1,14 +1,18 @@
 #import <Foundation/Foundation.h>
 #import <objc/message.h>
 #import <objc/runtime.h>
+#import <notify.h>
 
 #import <ControlCenterUIKit/CCUIToggleModule.h>
 
 #include <fcntl.h>
 #include <unistd.h>
+#include <stdio.h>
 
-#define AMBER_FLAG_PATH \
-"/var/mobile/Library/Caches/com.ochium.amber18.enabled"
+#define AMBER_STATE_NAME "com.ochium.amber18.enabled"
+
+#define LOG_PATH \
+"/var/mobile/Library/Caches/com.apple.cameracaptured/Amber18Notify.txt"
 
 @interface Amber18CCModule : CCUIToggleModule
 @end
@@ -17,58 +21,75 @@
 
 - (BOOL)isSelected
 {
-    return access(AMBER_FLAG_PATH, F_OK) == 0;
+    int token = -1;
+    uint64_t state = 0;
+
+    uint32_t regResult =
+        notify_register_check(AMBER_STATE_NAME, &token);
+
+    if (regResult != NOTIFY_STATUS_OK)
+        return NO;
+
+    uint32_t getResult =
+        notify_get_state(token, &state);
+
+    notify_cancel(token);
+
+    if (getResult != NOTIFY_STATUS_OK)
+        return NO;
+
+    return state == 1;
 }
 
 - (void)setSelected:(BOOL)selected
 {
-    if (selected) {
-        int fd = open(
-            AMBER_FLAG_PATH,
-            O_WRONLY | O_CREAT | O_TRUNC,
-            0644
-        );
+    int token = -1;
+    uint64_t state = 0;
 
-        if (fd >= 0)
-            close(fd);
-    } else {
-        unlink(AMBER_FLAG_PATH);
+    uint32_t regResult =
+        notify_register_check(AMBER_STATE_NAME, &token);
+
+    uint32_t setResult = 999;
+    uint32_t getResult = 999;
+
+    if (regResult == NOTIFY_STATUS_OK) {
+        setResult =
+            notify_set_state(token, selected ? 1 : 0);
+
+        getResult =
+            notify_get_state(token, &state);
     }
 
-    Class controllerClass =
-        objc_getClass("SBUIFlashlightController");
+    char buffer[512];
 
-    if (controllerClass == Nil)
-        return;
+    int length = snprintf(
+        buffer,
+        sizeof(buffer),
+        "selected: %d\n"
+        "notify_register_check: %u\n"
+        "notify_set_state: %u\n"
+        "notify_get_state: %u\n"
+        "state read back: %llu\n",
+        selected ? 1 : 0,
+        regResult,
+        setResult,
+        getResult,
+        (unsigned long long)state
+    );
 
-    id controller =
-        ((id (*)(id, SEL))objc_msgSend)(
-            (id)controllerClass,
-            sel_registerName("sharedInstance")
-        );
+    int fd = open(
+        LOG_PATH,
+        O_WRONLY | O_CREAT | O_TRUNC,
+        0644
+    );
 
-    if (controller == nil)
-        return;
-
-    if (selected) {
-        SEL powerOnSEL = sel_registerName("_turnPowerOn");
-
-        if ([controller respondsToSelector:powerOnSEL]) {
-            ((void (*)(id, SEL))objc_msgSend)(
-                controller,
-                powerOnSEL
-            );
-        }
-    } else {
-        SEL powerOffSEL = sel_registerName("_turnPowerOff");
-
-        if ([controller respondsToSelector:powerOffSEL]) {
-            ((void (*)(id, SEL))objc_msgSend)(
-                controller,
-                powerOffSEL
-            );
-        }
+    if (fd >= 0) {
+        write(fd, buffer, length);
+        close(fd);
     }
+
+    if (regResult == NOTIFY_STATUS_OK)
+        notify_cancel(token);
 }
 
 @end
