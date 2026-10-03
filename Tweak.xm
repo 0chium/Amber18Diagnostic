@@ -16,33 +16,14 @@ static int hookedSetIndividualTorchLEDLevels(
     unsigned int levels
 )
 {
-    unsigned int amberLevels = levels ? (levels >> 8) : levels;
-
-    const char *path =
-        "/var/mobile/Library/Caches/com.apple.cameracaptured/Amber18Diagnostic-hook.txt";
-
-    int fd = open(path, O_WRONLY | O_CREAT | O_TRUNC, 0644);
-
-    if (fd >= 0) {
-        char buffer[256];
-
-        int length = snprintf(
-            buffer,
-            sizeof(buffer),
-            "original: 0x%08X\n"
-            "amber: 0x%08X\n",
-            levels,
-            amberLevels
-        );
-
-        write(fd, buffer, length);
-        close(fd);
-    }
+    // For now, amber mode is OFF.
+    // Pass Apple's original LED levels through unchanged.
+    unsigned int finalLevels = levels;
 
     return originalSetIndividualTorchLEDLevels(
         device,
         arg1,
-        amberLevels
+        finalLevels
     );
 }
 
