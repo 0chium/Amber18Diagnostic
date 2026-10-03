@@ -7,34 +7,84 @@
 @interface Amber18CCModule : CCUIToggleModule
 @end
 
-@implementation Amber18CCModule
+@implementation Amber18CCModule {
+    id _appleFlashlightModule;
+    id _appleFlashlightViewController;
+}
+
+- (id)appleFlashlightViewController
+{
+    if (_appleFlashlightViewController != nil)
+        return _appleFlashlightViewController;
+
+    NSBundle *bundle = [NSBundle bundleWithPath:
+        @"/System/Library/ControlCenter/Bundles/FlashlightModule.bundle"];
+
+    if (bundle == nil)
+        return nil;
+
+    [bundle load];
+
+    Class moduleClass =
+        NSClassFromString(@"CCUIFlashlightModule");
+
+    if (moduleClass == Nil)
+        return nil;
+
+    _appleFlashlightModule =
+        [[moduleClass alloc] init];
+
+    if (_appleFlashlightModule == nil)
+        return nil;
+
+    SEL contentSelector =
+        sel_registerName("contentViewController");
+
+    if (![_appleFlashlightModule respondsToSelector:contentSelector])
+        return nil;
+
+    _appleFlashlightViewController =
+        ((id (*)(id, SEL))objc_msgSend)(
+            _appleFlashlightModule,
+            contentSelector
+        );
+
+    return _appleFlashlightViewController;
+}
 
 - (BOOL)isSelected
 {
     Class controllerClass =
-        objc_getClass("SBUIFlashlightController");
+        NSClassFromString(@"SBUIFlashlightController");
 
     if (controllerClass == Nil)
+        return NO;
+
+    SEL sharedSelector =
+        sel_registerName("sharedInstance");
+
+    if (![controllerClass respondsToSelector:sharedSelector])
         return NO;
 
     id controller =
         ((id (*)(id, SEL))objc_msgSend)(
             (id)controllerClass,
-            sel_registerName("sharedInstance")
+            sharedSelector
         );
 
     if (controller == nil)
         return NO;
 
-    SEL levelSEL = sel_registerName("level");
+    SEL levelSelector =
+        sel_registerName("level");
 
-    if (![controller respondsToSelector:levelSEL])
+    if (![controller respondsToSelector:levelSelector])
         return NO;
 
     NSUInteger level =
         ((NSUInteger (*)(id, SEL))objc_msgSend)(
             controller,
-            levelSEL
+            levelSelector
         );
 
     return level != 0;
@@ -42,46 +92,24 @@
 
 - (void)setSelected:(BOOL)selected
 {
-    Class controllerClass =
-        objc_getClass("SBUIFlashlightController");
-
-    if (controllerClass == Nil)
-        return;
-
     id controller =
-        ((id (*)(id, SEL))objc_msgSend)(
-            (id)controllerClass,
-            sel_registerName("sharedInstance")
-        );
+        [self appleFlashlightViewController];
 
     if (controller == nil)
         return;
 
-    NSString *reason = @"Control Center";
+    SEL buttonSelector =
+        sel_registerName("buttonTapped:forEvent:");
 
-    if (selected) {
-        SEL selector =
-            sel_registerName("turnFlashlightOnForReason:");
+    if (![controller respondsToSelector:buttonSelector])
+        return;
 
-        if ([controller respondsToSelector:selector]) {
-            ((void (*)(id, SEL, id))objc_msgSend)(
-                controller,
-                selector,
-                reason
-            );
-        }
-    } else {
-        SEL selector =
-            sel_registerName("turnFlashlightOffForReason:");
-
-        if ([controller respondsToSelector:selector]) {
-            ((void (*)(id, SEL, id))objc_msgSend)(
-                controller,
-                selector,
-                reason
-            );
-        }
-    }
+    ((void (*)(id, SEL, id, id))objc_msgSend)(
+        controller,
+        buttonSelector,
+        nil,
+        nil
+    );
 }
 
 @end
