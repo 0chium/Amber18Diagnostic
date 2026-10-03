@@ -26,19 +26,30 @@ static int hookedSetIndividualTorchLEDLevels(
     int fd = open(path, O_WRONLY | O_CREAT | O_TRUNC, 0644);
 
     if (fd >= 0) {
-        char buffer[64];
+        char buffer[256];
+
         int length = snprintf(
             buffer,
             sizeof(buffer),
-            "hook called: %d\n",
-            callCount
+            "hook called: %d\n"
+            "arg1: %u (0x%08X)\n"
+            "levels: %u (0x%08X)\n",
+            callCount,
+            arg1,
+            arg1,
+            levels,
+            levels
         );
 
         write(fd, buffer, length);
         close(fd);
     }
 
-    return originalSetIndividualTorchLEDLevels(device, arg1, levels);
+    return originalSetIndividualTorchLEDLevels(
+        device,
+        arg1,
+        levels
+    );
 }
 
 __attribute__((constructor))
