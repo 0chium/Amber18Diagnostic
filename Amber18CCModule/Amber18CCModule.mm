@@ -65,6 +65,7 @@
 
 @interface Amber18ModuleViewController :
     CCUISliderButtonModuleViewController
+    <CCUIContentModuleContentViewController>
 {
     SBUIFlashlightController *_flashlight;
 }
