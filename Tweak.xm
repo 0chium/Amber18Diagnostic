@@ -1,6 +1,7 @@
 #include <fcntl.h>
 #include <unistd.h>
 #include <dlfcn.h>
+#include <stdio.h>
 #include <substrate.h>
 
 static int (*originalSetIndividualTorchLEDLevels)(
