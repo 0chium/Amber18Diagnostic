@@ -3,6 +3,7 @@
 #include <dlfcn.h>
 #include <stdio.h>
 #include <string.h>
+#include <substrate.h>
 
 __attribute__((constructor))
 static void Amber18DiagnosticLoaded(void)
@@ -29,18 +30,16 @@ static void Amber18DiagnosticLoaded(void)
                  "dlerror: %s\n",
                  error ? error : "(no error text)");
     } else {
-        dlerror();
-
-        void *symbol = dlsym(handle, symbolName);
-        const char *error = dlerror();
+        MSImageRef image = MSGetImageByName(h10Path);
+        void *symbol = image ? MSFindSymbol(image, symbolName) : NULL;
 
         snprintf(message, sizeof(message),
                  "constructor: YES\n"
                  "H10ISP dlopen: SUCCESS\n"
-                 "SetIndividualTorchLEDLevels: %s\n"
-                 "dlsym error: %s\n",
-                 (symbol != NULL && error == NULL) ? "FOUND" : "NOT FOUND",
-                 error ? error : "(none)");
+                 "MSGetImageByName: %s\n"
+                 "MSFindSymbol SetIndividualTorchLEDLevels: %s\n",
+                 image ? "FOUND" : "NOT FOUND",
+                 symbol ? "FOUND" : "NOT FOUND");
 
         dlclose(handle);
     }
