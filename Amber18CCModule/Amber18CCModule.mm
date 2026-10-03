@@ -57,27 +57,27 @@
     if (controller == nil)
         return;
 
-    NSString *reason = @"com.ochium.amber18";
+    NSString *reason = @"Control Center";
 
     if (selected) {
-        SEL onSEL =
+        SEL selector =
             sel_registerName("turnFlashlightOnForReason:");
 
-        if ([controller respondsToSelector:onSEL]) {
+        if ([controller respondsToSelector:selector]) {
             ((void (*)(id, SEL, id))objc_msgSend)(
                 controller,
-                onSEL,
+                selector,
                 reason
             );
         }
     } else {
-        SEL offSEL =
+        SEL selector =
             sel_registerName("turnFlashlightOffForReason:");
 
-        if ([controller respondsToSelector:offSEL]) {
+        if ([controller respondsToSelector:selector]) {
             ((void (*)(id, SEL, id))objc_msgSend)(
                 controller,
-                offSEL,
+                selector,
                 reason
             );
         }
