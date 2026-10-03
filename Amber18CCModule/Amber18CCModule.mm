@@ -56,18 +56,25 @@
     if (controller == nil)
         return;
 
-    SEL setLevelSEL = sel_registerName("setLevel:");
+    if (selected) {
+        SEL powerOnSEL = sel_registerName("_turnPowerOn");
 
-    if (![controller respondsToSelector:setLevelSEL])
-        return;
+        if ([controller respondsToSelector:powerOnSEL]) {
+            ((void (*)(id, SEL))objc_msgSend)(
+                controller,
+                powerOnSEL
+            );
+        }
+    } else {
+        SEL powerOffSEL = sel_registerName("_turnPowerOff");
 
-    unsigned long long level = selected ? 1 : 0;
-
-    ((void (*)(id, SEL, unsigned long long))objc_msgSend)(
-        controller,
-        setLevelSEL,
-        level
-    );
+        if ([controller respondsToSelector:powerOffSEL]) {
+            ((void (*)(id, SEL))objc_msgSend)(
+                controller,
+                powerOffSEL
+            );
+        }
+    }
 }
 
 @end
