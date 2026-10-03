@@ -1,248 +1,227 @@
 #import <Foundation/Foundation.h>
+#import <UIKit/UIKit.h>
 #import <objc/message.h>
 #import <objc/runtime.h>
-#import <unistd.h>
 
-#import <ControlCenterUIKit/CCUIToggleModule.h>
+#import <ControlCenterUIKit/CCUIContentModule.h>
+#import <ControlCenterUIKit/CCUISliderButtonModuleViewController.h>
 
-@interface Amber18CCModule : CCUIToggleModule
+#pragma mark - Private SpringBoardUI declarations
+
+@interface SBUIFlashlightController : NSObject
+
++ (instancetype)sharedInstance;
+
+- (NSUInteger)level;
+- (BOOL)isAvailable;
+
+- (void)addObserver:(id)observer;
+- (void)removeObserver:(id)observer;
+
+- (void)turnFlashlightOnForReason:(NSString *)reason;
+- (void)turnFlashlightOffForReason:(NSString *)reason;
+
 @end
 
-static NSString * const Amber18LogPath =
-    @"/var/mobile/Documents/Amber18-runtime.txt";
 
-static void Amber18Log(NSString *format, ...)
+#pragma mark - Amber view controller
+
+@interface Amber18ModuleViewController :
+    CCUISliderButtonModuleViewController
 {
-    va_list args;
-    va_start(args, format);
-
-    NSString *message =
-        [[NSString alloc] initWithFormat:format arguments:args];
-
-    va_end(args);
-
-    NSString *line = [NSString stringWithFormat:
-        @"%@\n", message];
-
-    NSData *data =
-        [line dataUsingEncoding:NSUTF8StringEncoding];
-
-    NSFileManager *fm = [NSFileManager defaultManager];
-
-    if (![fm fileExistsAtPath:Amber18LogPath]) {
-        [data writeToFile:Amber18LogPath atomically:YES];
-        return;
-    }
-
-    NSFileHandle *handle =
-        [NSFileHandle fileHandleForWritingAtPath:Amber18LogPath];
-
-    if (handle == nil)
-        return;
-
-    [handle seekToEndOfFile];
-    [handle writeData:data];
-    [handle closeFile];
+    SBUIFlashlightController *_flashlight;
 }
 
-@implementation Amber18CCModule
+@end
 
-- (instancetype)init
+
+@implementation Amber18ModuleViewController
+
+- (instancetype)initWithNibName:(NSString *)nibName
+                         bundle:(NSBundle *)bundle
 {
-    self = [super init];
+    self = [super initWithNibName:nibName bundle:bundle];
 
     if (self) {
-        Amber18Log(
-            @"INIT process=%@ pid=%d class=%@",
-            [[NSProcessInfo processInfo] processName],
-            getpid(),
-            NSStringFromClass([self class])
-        );
+        _flashlight = [SBUIFlashlightController sharedInstance];
+
+        if (_flashlight != nil &&
+            [_flashlight respondsToSelector:@selector(addObserver:)]) {
+
+            [_flashlight addObserver:self];
+        }
     }
 
     return self;
 }
 
-- (id)flashlightController
+- (void)dealloc
 {
-    Amber18Log(@"flashlightController ENTER");
+    if (_flashlight != nil &&
+        [_flashlight respondsToSelector:@selector(removeObserver:)]) {
 
-    Class controllerClass =
-        NSClassFromString(@"SBUIFlashlightController");
-
-    Amber18Log(
-        @"SBUIFlashlightController class=%@",
-        controllerClass ?
-            NSStringFromClass(controllerClass) :
-            @"nil"
-    );
-
-    if (controllerClass == Nil)
-        return nil;
-
-    SEL sharedSelector =
-        sel_registerName("sharedInstance");
-
-    BOOL hasShared =
-        [controllerClass respondsToSelector:sharedSelector];
-
-    Amber18Log(
-        @"sharedInstance selector=%@",
-        hasShared ? @"YES" : @"NO"
-    );
-
-    if (!hasShared)
-        return nil;
-
-    id controller =
-        ((id (*)(id, SEL))objc_msgSend)(
-            (id)controllerClass,
-            sharedSelector
-        );
-
-    Amber18Log(
-        @"sharedInstance object=%@ objectClass=%@",
-        controller ? @"NON-NIL" : @"nil",
-        controller ?
-            NSStringFromClass([controller class]) :
-            @"nil"
-    );
-
-    return controller;
+        [_flashlight removeObserver:self];
+    }
 }
 
-- (NSUInteger)flashlightLevel
+- (void)viewDidLoad
 {
-    Amber18Log(@"flashlightLevel ENTER");
+    [super viewDidLoad];
 
-    id controller = [self flashlightController];
+    UIImage *offImage =
+        [UIImage systemImageNamed:@"flashlight.off.fill"];
 
-    if (controller == nil) {
-        Amber18Log(@"flashlightLevel controller=nil");
-        return 0;
+    UIImage *onImage =
+        [UIImage systemImageNamed:@"flashlight.on.fill"];
+
+    SEL setGlyphSelector =
+        NSSelectorFromString(@"setGlyphImage:");
+
+    SEL setSelectedGlyphSelector =
+        NSSelectorFromString(@"setSelectedGlyphImage:");
+
+    if ([self respondsToSelector:setGlyphSelector]) {
+        ((void (*)(id, SEL, id))objc_msgSend)(
+            self,
+            setGlyphSelector,
+            offImage
+        );
     }
 
-    SEL selector = sel_registerName("level");
-
-    BOOL hasLevel =
-        [controller respondsToSelector:selector];
-
-    Amber18Log(
-        @"level selector=%@",
-        hasLevel ? @"YES" : @"NO"
-    );
-
-    if (!hasLevel)
-        return 0;
-
-    NSUInteger level =
-        ((NSUInteger (*)(id, SEL))objc_msgSend)(
-            controller,
-            selector
+    if ([self respondsToSelector:setSelectedGlyphSelector]) {
+        ((void (*)(id, SEL, id))objc_msgSend)(
+            self,
+            setSelectedGlyphSelector,
+            onImage
         );
+    }
 
-    Amber18Log(
-        @"flashlightLevel value=%llu",
-        (unsigned long long)level
-    );
-
-    return level;
+    [self amber18UpdateState];
 }
 
-- (BOOL)isSelected
+- (void)viewWillAppear:(BOOL)animated
 {
-    Amber18Log(@"isSelected ENTER");
+    [super viewWillAppear:animated];
 
-    NSUInteger level = [self flashlightLevel];
-    BOOL selected = level != 0;
-
-    Amber18Log(
-        @"isSelected RETURN=%@ level=%llu",
-        selected ? @"YES" : @"NO",
-        (unsigned long long)level
-    );
-
-    return selected;
+    [self amber18UpdateState];
 }
 
-- (void)setSelected:(BOOL)selected
+- (void)amber18UpdateState
 {
-    Amber18Log(
-        @"setSelected ENTER selected=%@",
-        selected ? @"YES" : @"NO"
-    );
-
-    id controller = [self flashlightController];
-
-    if (controller == nil) {
-        Amber18Log(@"setSelected controller=nil");
+    if (_flashlight == nil)
         return;
-    }
 
-    NSUInteger before = [self flashlightLevel];
+    BOOL on = [_flashlight level] != 0;
 
-    Amber18Log(
-        @"level BEFORE=%llu",
-        (unsigned long long)before
-    );
+    [super setSelected:on];
+}
 
-    if (selected) {
-        SEL selector =
-            sel_registerName("turnFlashlightOnForReason:");
+- (void)buttonTapped:(id)sender forEvent:(id)event
+{
+    if (_flashlight == nil)
+        return;
 
-        BOOL responds =
-            [controller respondsToSelector:selector];
+    BOOL currentlyOn =
+        [_flashlight level] != 0;
 
-        Amber18Log(
-            @"turnFlashlightOnForReason selector=%@",
-            responds ? @"YES" : @"NO"
-        );
+    if (currentlyOn) {
+        [super setSelected:NO];
 
-        if (responds) {
-            Amber18Log(@"CALL ON");
-
-            ((void (*)(id, SEL, id))objc_msgSend)(
-                controller,
-                selector,
-                @"Control Center"
-            );
-
-            Amber18Log(@"CALL ON RETURNED");
-        }
+        [_flashlight
+            turnFlashlightOffForReason:@"Control Center"];
     }
     else {
-        SEL selector =
-            sel_registerName("turnFlashlightOffForReason:");
+        [super setSelected:YES];
 
-        BOOL responds =
-            [controller respondsToSelector:selector];
+        [_flashlight
+            turnFlashlightOnForReason:@"Control Center"];
+    }
+}
 
-        Amber18Log(
-            @"turnFlashlightOffForReason selector=%@",
-            responds ? @"YES" : @"NO"
-        );
+#pragma mark - SBUIFlashlightObserver
 
-        if (responds) {
-            Amber18Log(@"CALL OFF");
+- (void)flashlightLevelDidChange:(id)notification
+{
+    [self amber18UpdateState];
+}
 
-            ((void (*)(id, SEL, id))objc_msgSend)(
-                controller,
-                selector,
-                @"Control Center"
-            );
+- (void)flashlightAvailabilityDidChange:(id)notification
+{
+    [self amber18UpdateState];
+}
 
-            Amber18Log(@"CALL OFF RETURNED");
-        }
+- (void)flashlightOverheatedDidChange:(id)notification
+{
+    [self amber18UpdateState];
+}
+
+@end
+
+
+#pragma mark - Amber content module
+
+@interface Amber18CCModule :
+    NSObject <CCUIContentModule>
+{
+    Amber18ModuleViewController *_viewController;
+}
+
+@property (nonatomic, readonly)
+    UIViewController<CCUIContentModuleContentViewController>
+        *contentViewController;
+
+@end
+
+
+@implementation Amber18CCModule
+
+- (UIViewController<CCUIContentModuleContentViewController> *)
+    contentViewController
+{
+    return _viewController;
+}
+
+- (UIViewController<CCUIContentModuleContentViewController> *)
+    contentViewControllerForContext:(id)context
+{
+    if (_viewController == nil) {
+        NSBundle *bundle =
+            [NSBundle bundleForClass:[self class]];
+
+        _viewController =
+            [[Amber18ModuleViewController alloc]
+                initWithNibName:nil
+                        bundle:bundle];
     }
 
-    NSUInteger after = [self flashlightLevel];
+    return _viewController;
+}
 
-    Amber18Log(
-        @"level AFTER=%llu",
-        (unsigned long long)after
-    );
+- (UIViewController<CCUIContentModuleBackgroundViewController> *)
+    backgroundViewController
+{
+    return nil;
+}
 
-    Amber18Log(@"setSelected EXIT");
+- (UIViewController<CCUIContentModuleBackgroundViewController> *)
+    backgroundViewControllerForContext:(id)context
+{
+    return nil;
+}
+
+- (NSUInteger)supportedGridSizeClasses
+{
+    return 1;
+}
+
+- (BOOL)expandsGridSizeClassesForAccessibility
+{
+    return NO;
+}
+
+- (NSString *)moduleDescription
+{
+    return @"Amber";
 }
 
 @end
