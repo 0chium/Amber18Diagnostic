@@ -55,7 +55,50 @@ static void Amber18SetWarmMode(BOOL enabled)
 @interface Amber18CCModule : CCUIToggleModule
 @end
 
-@implementation Amber18CCModule
+@implementation Amber18CCModule {
+    id _appleFlashlightModule;
+    id _appleFlashlightViewController;
+}
+
+- (id)appleFlashlightViewController
+{
+    if (_appleFlashlightViewController != nil)
+        return _appleFlashlightViewController;
+
+    NSBundle *bundle = [NSBundle bundleWithPath:
+        @"/System/Library/ControlCenter/Bundles/FlashlightModule.bundle"];
+
+    if (bundle == nil)
+        return nil;
+
+    [bundle load];
+
+    Class moduleClass =
+        NSClassFromString(@"CCUIFlashlightModule");
+
+    if (moduleClass == Nil)
+        return nil;
+
+    _appleFlashlightModule =
+        [[moduleClass alloc] init];
+
+    if (_appleFlashlightModule == nil)
+        return nil;
+
+    SEL contentSelector =
+        sel_registerName("contentViewController");
+
+    if (![_appleFlashlightModule respondsToSelector:contentSelector])
+        return nil;
+
+    _appleFlashlightViewController =
+        ((id (*)(id, SEL))objc_msgSend)(
+            _appleFlashlightModule,
+            contentSelector
+        );
+
+    return _appleFlashlightViewController;
+}
 
 - (id)flashlightController
 {
@@ -77,8 +120,10 @@ static void Amber18SetWarmMode(BOOL enabled)
     );
 }
 
-- (NSUInteger)flashlightLevelForController:(id)controller
+- (NSUInteger)flashlightLevel
 {
+    id controller = [self flashlightController];
+
     if (controller == nil)
         return 0;
 
@@ -96,64 +141,50 @@ static void Amber18SetWarmMode(BOOL enabled)
 
 - (BOOL)isSelected
 {
-    id controller = [self flashlightController];
-
     return Amber18WarmModeEnabled() &&
-           [self flashlightLevelForController:controller] != 0;
+           [self flashlightLevel] != 0;
 }
 
 - (void)setSelected:(BOOL)selected
 {
-    id controller = [self flashlightController];
+    id controller =
+        [self appleFlashlightViewController];
 
     if (controller == nil)
         return;
 
-    NSUInteger level =
-        [self flashlightLevelForController:controller];
+    SEL buttonSelector =
+        sel_registerName("buttonTapped:forEvent:");
+
+    if (![controller respondsToSelector:buttonSelector])
+        return;
 
     if (selected) {
+        /*
+         * Publish Warm mode before using the known-working
+         * Apple Control Center flashlight activation path.
+         */
         Amber18SetWarmMode(YES);
 
-        if (level == 0) {
-            SEL onSelector =
-                sel_registerName("turnFlashlightOnForReason:");
-
-            if ([controller respondsToSelector:onSelector]) {
-                ((void (*)(id, SEL, id))objc_msgSend)(
-                    controller,
-                    onSelector,
-                    @"Amber18 Warm"
-                );
-            }
-        }
-        else {
-            SEL setLevelSelector =
-                sel_registerName("setLevel:");
-
-            if ([controller respondsToSelector:setLevelSelector]) {
-                ((void (*)(id, SEL, NSUInteger))objc_msgSend)(
-                    controller,
-                    setLevelSelector,
-                    level
-                );
-            }
-        }
-
-        return;
+        ((void (*)(id, SEL, id, id))objc_msgSend)(
+            controller,
+            buttonSelector,
+            nil,
+            nil
+        );
     }
+    else {
+        /*
+         * Clear Warm mode before Apple's normal OFF request.
+         */
+        Amber18SetWarmMode(NO);
 
-    Amber18SetWarmMode(NO);
-
-    if (level != 0) {
-        SEL offSelector =
-            sel_registerName("turnFlashlightOffForReason:");
-
-        if ([controller respondsToSelector:offSelector]) {
-            ((void (*)(id, SEL, id))objc_msgSend)(
+        if ([self flashlightLevel] != 0) {
+            ((void (*)(id, SEL, id, id))objc_msgSend)(
                 controller,
-                offSelector,
-                @"Amber18 Warm"
+                buttonSelector,
+                nil,
+                nil
             );
         }
     }
