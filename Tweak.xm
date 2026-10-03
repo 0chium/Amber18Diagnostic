@@ -1,21 +1,11 @@
-#include <fcntl.h>
-#include <unistd.h>
 #include <dlfcn.h>
 #include <substrate.h>
-
-#define AMBER_FLAG_PATH \
-"/var/mobile/Library/Caches/com.ochium.amber18.enabled"
 
 static int (*originalSetIndividualTorchLEDLevels)(
     void *,
     unsigned int,
     unsigned int
 );
-
-static bool AmberEnabled(void)
-{
-    return access(AMBER_FLAG_PATH, F_OK) == 0;
-}
 
 static int hookedSetIndividualTorchLEDLevels(
     void *device,
@@ -25,7 +15,7 @@ static int hookedSetIndividualTorchLEDLevels(
 {
     unsigned int finalLevels = levels;
 
-    if (levels != 0 && AmberEnabled())
+    if (levels != 0)
         finalLevels = levels >> 8;
 
     return originalSetIndividualTorchLEDLevels(
