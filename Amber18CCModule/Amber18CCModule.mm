@@ -34,7 +34,6 @@
 
 @end
 
-
 @interface CCUISliderButtonModuleViewController : UIViewController
 
 - (BOOL)isSelected;
@@ -43,33 +42,11 @@
 @end
 
 
-#pragma mark - Private SpringBoardUI declarations
-
-@interface SBUIFlashlightController : NSObject
-
-+ (instancetype)sharedInstance;
-
-- (NSUInteger)level;
-- (BOOL)isAvailable;
-
-- (void)addObserver:(id)observer;
-- (void)removeObserver:(id)observer;
-
-- (void)turnFlashlightOnForReason:(NSString *)reason;
-- (void)turnFlashlightOffForReason:(NSString *)reason;
-
-@end
-
-
-#pragma mark - Amber view controller
+#pragma mark - Diagnostic view controller
 
 @interface Amber18ModuleViewController :
     CCUISliderButtonModuleViewController
     <CCUIContentModuleContentViewController>
-{
-    SBUIFlashlightController *_flashlight;
-}
-
 @end
 
 
@@ -80,35 +57,22 @@
 {
     self = [super initWithNibName:nibName bundle:bundle];
 
-    if (self) {
-        _flashlight = [SBUIFlashlightController sharedInstance];
-
-        if (_flashlight != nil &&
-            [_flashlight respondsToSelector:@selector(addObserver:)]) {
-            [_flashlight addObserver:self];
-        }
-    }
-
     return self;
-}
-
-- (void)dealloc
-{
-    if (_flashlight != nil &&
-        [_flashlight respondsToSelector:@selector(removeObserver:)]) {
-        [_flashlight removeObserver:self];
-    }
 }
 
 - (void)viewDidLoad
 {
     [super viewDidLoad];
 
-    UIImage *offImage =
-        [UIImage systemImageNamed:@"flashlight.off.fill"];
+    /*
+     * DIAGNOSTIC STAGE 1
+     *
+     * If this controller is actually instantiated and viewDidLoad runs,
+     * the Amber control should show a CHECKMARK.
+     */
 
-    UIImage *onImage =
-        [UIImage systemImageNamed:@"flashlight.on.fill"];
+    UIImage *loadedImage =
+        [UIImage systemImageNamed:@"checkmark.circle.fill"];
 
     SEL setGlyphSelector =
         NSSelectorFromString(@"setGlyphImage:");
@@ -120,7 +84,7 @@
         ((void (*)(id, SEL, id))objc_msgSend)(
             self,
             setGlyphSelector,
-            offImage
+            loadedImage
         );
     }
 
@@ -128,63 +92,47 @@
         ((void (*)(id, SEL, id))objc_msgSend)(
             self,
             setSelectedGlyphSelector,
-            onImage
+            loadedImage
         );
     }
 
-    [self amber18UpdateState];
-}
-
-- (void)viewWillAppear:(BOOL)animated
-{
-    [super viewWillAppear:animated];
-    [self amber18UpdateState];
-}
-
-- (void)amber18UpdateState
-{
-    if (_flashlight == nil)
-        return;
-
-    BOOL on = [_flashlight level] != 0;
-    [super setSelected:on];
+    [super setSelected:NO];
 }
 
 - (void)buttonTapped:(id)sender forEvent:(id)event
 {
-    if (_flashlight == nil)
-        return;
+    /*
+     * DIAGNOSTIC STAGE 2
+     *
+     * If iOS 18.2 routes a tap here, replace the checkmark with an X.
+     */
 
-    BOOL currentlyOn = [_flashlight level] != 0;
+    UIImage *tapImage =
+        [UIImage systemImageNamed:@"xmark.circle.fill"];
 
-    if (currentlyOn) {
-        [super setSelected:NO];
+    SEL setGlyphSelector =
+        NSSelectorFromString(@"setGlyphImage:");
 
-        [_flashlight
-            turnFlashlightOffForReason:@"Control Center"];
-    } else {
-        [super setSelected:YES];
+    SEL setSelectedGlyphSelector =
+        NSSelectorFromString(@"setSelectedGlyphImage:");
 
-        [_flashlight
-            turnFlashlightOnForReason:@"Control Center"];
+    if ([self respondsToSelector:setGlyphSelector]) {
+        ((void (*)(id, SEL, id))objc_msgSend)(
+            self,
+            setGlyphSelector,
+            tapImage
+        );
     }
-}
 
-#pragma mark - Flashlight observer callbacks
+    if ([self respondsToSelector:setSelectedGlyphSelector]) {
+        ((void (*)(id, SEL, id))objc_msgSend)(
+            self,
+            setSelectedGlyphSelector,
+            tapImage
+        );
+    }
 
-- (void)flashlightLevelDidChange:(id)notification
-{
-    [self amber18UpdateState];
-}
-
-- (void)flashlightAvailabilityDidChange:(id)notification
-{
-    [self amber18UpdateState];
-}
-
-- (void)flashlightOverheatedDidChange:(id)notification
-{
-    [self amber18UpdateState];
+    [super setSelected:YES];
 }
 
 @end
@@ -197,7 +145,6 @@
 {
     Amber18ModuleViewController *_viewController;
 }
-
 @end
 
 
