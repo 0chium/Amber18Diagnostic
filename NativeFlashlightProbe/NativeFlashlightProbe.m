@@ -3,7 +3,7 @@
 
 @interface SBUIFlashlightController : NSObject
 + (instancetype)sharedInstance;
-- (void)turnFlashlightOnForReason:(NSString *)reason;
+- (float)width;
 @end
 
 __attribute__((constructor))
@@ -13,8 +13,18 @@ static void Amber18NativeFlashlightProbeLoaded(void)
         SBUIFlashlightController *flashlight =
             [SBUIFlashlightController sharedInstance];
 
-        if (flashlight != nil) {
-            [flashlight turnFlashlightOnForReason:@"Control Center"];
-        }
+        if (flashlight == nil)
+            return;
+
+        float width = [flashlight width];
+
+        NSString *output = [NSString stringWithFormat:
+            @"SBUIFlashlightController width = %.9f\n",
+            width];
+
+        [output writeToFile:@"/var/mobile/Documents/AmberWidth.txt"
+                 atomically:YES
+                   encoding:NSUTF8StringEncoding
+                      error:nil];
     });
 }
