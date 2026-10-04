@@ -1,30 +1,26 @@
 #import <Foundation/Foundation.h>
 #import <dispatch/dispatch.h>
+#import <notify.h>
 
 @interface SBUIFlashlightController : NSObject
 + (instancetype)sharedInstance;
-- (float)width;
+- (void)turnFlashlightOnForReason:(NSString *)reason;
 @end
+
+static const char *kAmber18ProbeNotification =
+    "com.ochium.amber18diagnostic.probe";
 
 __attribute__((constructor))
 static void Amber18NativeFlashlightProbeLoaded(void)
 {
     dispatch_async(dispatch_get_main_queue(), ^{
+        notify_post(kAmber18ProbeNotification);
+
         SBUIFlashlightController *flashlight =
             [SBUIFlashlightController sharedInstance];
 
-        if (flashlight == nil)
-            return;
-
-        float width = [flashlight width];
-
-        NSString *output = [NSString stringWithFormat:
-            @"SBUIFlashlightController width = %.9f\n",
-            width];
-
-        [output writeToFile:@"/var/mobile/Documents/AmberWidth.txt"
-                 atomically:YES
-                   encoding:NSUTF8StringEncoding
-                      error:nil];
+        if (flashlight != nil) {
+            [flashlight turnFlashlightOnForReason:@"Control Center"];
+        }
     });
 }
